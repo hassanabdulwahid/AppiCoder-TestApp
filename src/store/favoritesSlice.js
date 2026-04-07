@@ -1,19 +1,21 @@
-import { createSlice } from '@reduxjs/toolkit'
+const TOGGLE_FAVORITE = 'favorites/toggleFavorite'
 
-const favoritesSlice = createSlice({
-  name: 'favorites',
-  initialState: { items: [] },
-  reducers: {
-    toggleFavorite: (state, action) => {
+const initialState = { items: [] }
+
+export const toggleFavorite = (user) => ({ type: TOGGLE_FAVORITE, payload: user })
+
+export default function favoritesReducer(state = initialState, action) {
+  switch (action.type) {
+    case TOGGLE_FAVORITE: {
       const exists = state.items.find(u => u.id === action.payload.id)
-      if (exists) {
-        state.items = state.items.filter(u => u.id !== action.payload.id)
-      } else {
-        state.items.push(action.payload)
+      return {
+        ...state,
+        items: exists
+          ? state.items.filter(u => u.id !== action.payload.id)
+          : [...state.items, action.payload],
       }
-    },
-  },
-})
-
-export const { toggleFavorite } = favoritesSlice.actions
-export default favoritesSlice.reducer
+    }
+    default:
+      return state
+  }
+}

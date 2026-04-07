@@ -1,64 +1,40 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export const loginThunk = createAsyncThunk(
-    'auth/login',
-    async ({ email, password }, { rejectWithValue }) => {
-        try {
-            // validation
-            if (!email.includes('@') || password.length < 8) {
-                return rejectWithValue('Invalid email or password')
-            }
+const PENDING = 'auth/loginPending'
+const SUCCESS = 'auth/loginFulfilled'
+const FAIL = 'auth/loginRejected'
+const LOGOUT = 'auth/logout'
 
-            const token = `fake-jwt-${email}-${Date.now()}`
-            console.log(token)
-            await AsyncStorage.setItem('token', token)
-            await AsyncStorage.setItem('email', email)
+export const loginThunk = ({ email, password }) => async (dispatch) => {
+    dispatch({ type: PENDING })
+    try {
+        if (!email.includes('@') || password.length < 8)
+            return dispatch({ type: FAIL, payload: 'Invalid email or password' })
 
-            return { token, email }
-        } catch (error) {
-            return rejectWithValue('Something went wrong')
-        }
+        const token = `fake-jwt-${email}-${Date.now()}`
+        await AsyncStorage.setItem('token', token)
+        await AsyncStorage.setItem('email', email)
+        dispatch({ type: SUCCESS, payload: { token, email } })
+    } catch (e) {
+        console.log('login error', e || "login failed")
+        dispatch({ type: FAIL, payload: 'Something went wrong' })
     }
-)
+}
 
-const authSlice = createSlice({
-    name: 'auth',
-    initialState: {
-        token: null,
-        email: null,
-        loading: false,
-        error: null,
-    },
-    reducers: {
-        logout: (state) => {
-            state.token = null
-            state.email = null
-            AsyncStorage.removeItem('token')
-            AsyncStorage.removeItem('email')
-        },
-        setCredentials: (state, action) => {
-            state.token = action.payload.token
-            state.email = action.payload.email
-        },
-    },
-    extraReducers: (builder) => {
-        builder
-            .addCase(loginThunk.pending, (state) => {
-                state.loading = true
-                state.error = null
-            })
-            .addCase(loginThunk.rejected, (state, action) => {
-                state.loading = false
-                state.error = action.payload
-            })
-            .addCase(loginThunk.fulfilled, (state, action) => {
-                state.loading = false
-                state.token = action.payload.token
-                state.email = action.payload.email
-            })
-    },
-})
+export const logout = () => async (dispatch) => {
+    await AsyncStorage.removeItem('token')
+    await AsyncStorage.removeItem('email')
+    dispatch({ type: LOGOUT })
+}
 
-export const { logout, setCredentials } = authSlice.actions
-export default authSlice.reducer
+const initialState = { token: null, email: null, loading: false, error: null }
+
+export default function authReducer(state = initialState, action) {
+    switch (action.type) {
+        case PENDING: return { ...state, loading: true, error: null }
+        case SUCCESS: return { ...state, loading: false, ...action.payload }
+        case FAIL: return { ...state, loading: false, error: action.payload }
+        case LOGOUT: return { ...initialState }
+        default: return state
+    }
+}
